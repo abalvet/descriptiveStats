@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Plotly.js Chart Generator</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>Data Visualization with Plotly.js</h1>
+
+    <!-- Text area to input data -->
+    <textarea id="dataInput" placeholder="Paste your TSV data here..." rows="30" cols="50"></textarea><br>
+    
+    <!-- Select format -->
+    <label for="formatSelect">Format:</label>
+    <select id="formatSelect">
+        <option value="anglo">US/GB</option>
+        <option value="french">FR</option>
+    </select><br>
+    
+    <!-- Select chart type -->
+    <label for="chartType">Type:</label>
+    <select id="chartType">
+        <option value="bar">Barres</option>
+        <option value="histogram">Histogramme</option>
+        <option value="scatter">Points</option>
+        <option value="box">Boîte à moustache</option>
+    </select><br>
+    
+    <!-- Button to generate chart -->
+    <button onclick="generateChart()">Generate Chart</button>
+
+    <!-- Div to display the chart -->
+    <div id="chart"></div>
+
+    <script>
+        // Function to parse TSV data from the input
+        function parseData(input, format) {
+            const rows = input.trim().split("\n");  // Split rows by newline
+            const headers = rows[0].split("\t");   // First row contains headers, split by tabs
+            const data = rows.slice(1).map(row => row.split("\t"));  // Remaining rows contain data
+
+            // Parse columns based on the format (French vs Anglo-Saxon)
+            return headers.map((header, i) => {
+                const column = data.map(row => format === "french" 
+                    ? parseFloat(row[i].replace(",", "."))  // Replace commas with periods for French format
+                    : parseFloat(row[i])
+                );
+                return { name: header, data: column };
+            });
+        }
+
+        // Function to generate the chart dynamically
+        function generateChart() {
+            const input = document.getElementById("dataInput").value;  // Get the user input
+            const format = document.getElementById("formatSelect").value;  // Get the selected format
+            const chartType = document.getElementById("chartType").value;  // Get the selected chart type
+
+            const parsedData = parseData(input, format);  // Parse the data
+            
+            // Use Plotly's default color palette
+            const colors = Plotly.d3.scale.category10().range();  // Default color scale
+
+            const data = [];
+            parsedData.forEach((series, i) => {
+                const color = colors[i % colors.length];  // Cycle through the color palette if there are many series
+                
+                let trace;
+                if (chartType === "bar") {
+                    // Create bar chart trace
+                    trace = {
+                        x: Array.from({ length: series.data.length }, (_, i) => `${i + 1}`),  // X-axis labels as Sample 1, Sample 2, etc.
+                        y: series.data,
+                        type: "bar",
+                        name: series.name,
+                        marker: {
+                            color: color  // Assign color from Plotly's default color palette
+                        }
+                    };
+                } else if (chartType === "histogram") {
+                    // Create histogram trace
+                    trace = {
+                        x: series.data,
+                        type: "histogram",
+                        name: series.name,
+                        marker: {
+                            color: color  // Assign color from Plotly's default color palette
+                        }
+                    };
+                } else if (chartType === "scatter") {
+                    // Create scatter plot trace
+                    trace = {
+                        x: Array.from({ length: series.data.length }, (_, i) => `${i + 1}`),  // X-axis labels as Sample 1, Sample 2, etc.
+                        y: series.data,
+                        mode: "markers",
+                        type: "scatter",
+                        name: series.name,
+                        marker: {
+                            opacity: 0.6,
+                            color: color  // Assign color from Plotly's default color palette
+                        }
+                    };
+                } else if (chartType === "box") {
+                    // Create boxplot trace with jittered points and matching color for data points and box
+                    trace = {
+                        y: series.data,
+                        type: "box",
+                        name: series.name,
+                        boxpoints: 'suspectedoutliers',   // Display all points
+                        jitter: 0.5,        // Spread points horizontally to avoid overlap
+                        pointpos: 0,     // Position points to the side of the boxplot
+                        marker: { 
+                            color: color,  // Use color from Plotly's default color palette
+                            opacity: 0.4,
+                            size: 6        // Set size of the points
+                        },
+                        line: {
+                            color: color  // Use the same color for the boxplot line
+                        }
+                    };
+                }
+                data.push(trace);
+            });
+
+            const layout = { title: chartType.charAt(0).toUpperCase() + chartType.slice(1) };  // Dynamic title based on chart type
+            if (chartType === "bar" || chartType === "box") {
+                layout.barmode = "group";  // Grouped bar chart or boxplot mode
+            }
+
+            Plotly.newPlot('chart', data, layout);  // Generate the plot
+        }
+    </script>
+</body>
+</html>
+
